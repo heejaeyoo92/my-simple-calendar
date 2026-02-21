@@ -49,9 +49,10 @@
     .calendar{
       border:1px solid #2a2f41;
       border-radius: var(--radius);
-      overflow:hidden;
+      overflow:auto;
       background: rgba(17,19,26,.75);
       backdrop-filter: blur(6px);
+      max-height: 72vh;
     }
     .grid{
       display:grid;
@@ -64,11 +65,17 @@
       border-bottom:1px solid var(--grid);
       display:flex; align-items:center; justify-content:center;
       color:var(--muted); font-size:12px;
+      position:sticky; top:0;
+      background: rgba(17,19,26,.95);
+      z-index:20;
     }
     .day-headers{
       grid-column:2 / span 7; grid-row:1;
       display:grid;
       grid-template-columns: repeat(7, 1fr);
+      position:sticky; top:0;
+      background: rgba(17,19,26,.95);
+      z-index:10;
     }
     .day-header{
       border-bottom:1px solid var(--grid);
@@ -124,6 +131,7 @@
       box-shadow: 0 6px 18px rgba(0,0,0,.25);
       overflow:hidden;
       border:1px solid rgba(0,0,0,.15);
+      z-index:3;
     }
     .event .name{font-weight:700}
     .event .meta{margin-top:4px; font-size:11px; opacity:.85}
@@ -153,6 +161,27 @@
       margin-top:10px;
       color:var(--muted);
       font-size:12px;
+    }
+    .now-line{
+      position:absolute;
+      left:0; right:0;
+      height:2px;
+      background: #ff6b6b;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.25);
+      z-index:6;
+      pointer-events:none;
+    }
+    .now-dot{
+      position:absolute;
+      top:50%;
+      width:8px; height:8px;
+      border-radius:999px;
+      background:#ff6b6b;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 2px rgba(11,12,16,.8);
+    }
+    @media (max-width: 900px){
+      .calendar{max-height: 70vh}
     }
 
     /* Modal */
@@ -388,6 +417,9 @@
   let startDow = 1; // Monday default
   let base = new Date();
   base.setHours(0,0,0,0);
+  let currentWeekDates = [];
+  let nowLineEl = null;
+  let nowDotEl = null;
 
   // ---------- DOM ----------
   const elDayHeaders = document.getElementById("dayHeaders");
@@ -461,6 +493,7 @@
       hd.appendChild(date);
       elDayHeaders.appendChild(hd);
     }
+    currentWeekDates = dates;
 
     // days columns
     elDays.innerHTML = "";
@@ -479,6 +512,10 @@
       const block = makeEventBlock(ev);
       dayCol.appendChild(block);
     }
+
+    ensureNowLine();
+    elDays.appendChild(nowLineEl);
+    updateNowLine();
   }
 
   function makeEventBlock(ev){
@@ -615,6 +652,32 @@
     render();
   }
 
+  function ensureNowLine(){
+    if(nowLineEl) return;
+    nowLineEl = document.createElement("div");
+    nowLineEl.className = "now-line";
+    nowDotEl = document.createElement("div");
+    nowDotEl.className = "now-dot";
+    nowLineEl.appendChild(nowDotEl);
+  }
+
+  function updateNowLine(){
+    if(!nowLineEl || currentWeekDates.length !== 7) return;
+    const now = new Date();
+    const nowKey = toDateKey(now);
+    const idx = currentWeekDates.findIndex(d => toDateKey(d) === nowKey);
+    if(idx < 0){
+      nowLineEl.style.display = "none";
+      return;
+    }
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    const slotHeightPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h'));
+    const topPx = (minutes / 15) * slotHeightPx;
+    nowLineEl.style.display = "block";
+    nowLineEl.style.top = `${topPx}px`;
+    nowDotEl.style.left = `${((idx + 0.5) / 7) * 100}%`;
+  }
+
   // ---------- Storage ----------
   function loadEvents(){
     try{
@@ -679,6 +742,8 @@
   // ---------- Init ----------
   buildTimeCol();
   render();
+  updateNowLine();
+  setInterval(updateNowLine, 60 * 1000);
 })();
 </script>
 </body>
